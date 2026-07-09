@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Who Goes Home? — Neck Dissection Discharge Risk Calculator</title>
+<meta name="description" content="Bedside risk score for non-home discharge after neck dissection. Derived from 24,087 ACS-NSQIP cases, 2011–2020. Validation AUC 0.78.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --indigo:#2D2E8A; --indigo-deep:#20215F; --berry:#881E42;
+    --ink:#1A1A2E; --ice:#EFF5FC; --ice-2:#DEEDFA; --line:#C9D8EA;
+    --white:#FFFFFF; --muted:#5A6478;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+    background:var(--ice); color:var(--ink); line-height:1.45;
+    font-variant-numeric:tabular-nums;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 20px 232px}
+
+  header{background:var(--indigo);color:var(--white);padding:28px 20px 24px}
+  header .inner{max-width:640px;margin:0 auto}
+  .eyebrow{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#B9C4F2}
+  h1{
+    font-weight:900;font-stretch:112%;letter-spacing:-.01em;
+    font-size:clamp(30px,7vw,42px);line-height:1.02;margin:6px 0 8px;text-transform:uppercase;
+  }
+  .sub{font-size:15px;color:#DDE4FB;max-width:46ch}
+
+  .section-label{
+    font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--indigo);margin:28px 0 10px;
+  }
+  fieldset{border:0}
+  legend{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+  /* segmented controls */
+  .seg{display:grid;gap:8px}
+  .seg.cols-3{grid-template-columns:repeat(3,1fr)}
+  .seg.cols-5{grid-template-columns:repeat(5,1fr)}
+  .seg input{position:absolute;opacity:0;pointer-events:none}
+  .seg label{
+    background:var(--white);border:1.5px solid var(--line);border-radius:10px;
+    padding:12px 6px;text-align:center;cursor:pointer;font-size:14px;font-weight:600;
+    display:flex;flex-direction:column;gap:3px;justify-content:center;min-height:62px;
+    transition:border-color .12s, background .12s;
+  }
+  .seg.cols-5 label{font-size:13px;padding:12px 3px}
+  .seg label .pts{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+  .seg input:checked + label{border-color:var(--indigo);background:var(--ice-2);color:var(--indigo-deep)}
+  .seg input:checked + label .pts{color:var(--berry)}
+  .seg input:focus-visible + label{outline:3px solid var(--berry);outline-offset:2px}
+
+  /* toggle rows */
+  .row{
+    background:var(--white);border:1.5px solid var(--line);border-radius:10px;
+    padding:14px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;
+    margin-bottom:8px;transition:border-color .12s, background .12s;
+  }
+  .row input{position:absolute;opacity:0;pointer-events:none}
+  .row .box{
+    flex:none;width:24px;height:24px;border:2px solid var(--line);border-radius:6px;
+    display:grid;place-items:center;transition:all .12s;
+  }
+  .row .box svg{opacity:0;transition:opacity .12s}
+  .row .txt{flex:1}
+  .row .txt b{display:block;font-size:15px;font-weight:600}
+  .row .txt span{font-size:12.5px;color:var(--muted)}
+  .row .pts{flex:none;font-size:14px;font-weight:700;color:var(--muted)}
+  .row:has(input:checked){border-color:var(--indigo);background:var(--ice-2)}
+  .row:has(input:checked) .box{background:var(--indigo);border-color:var(--indigo)}
+  .row:has(input:checked) .box svg{opacity:1}
+  .row:has(input:checked) .pts{color:var(--berry)}
+  .row:has(input:focus-visible){outline:3px solid var(--berry);outline-offset:2px}
+
+  /* sticky result */
+  .result{
+    position:fixed;left:0;right:0;bottom:0;background:var(--indigo-deep);color:var(--white);
+    padding:14px 20px 18px;box-shadow:0 -6px 24px rgba(26,26,46,.25);
+  }
+  .result .inner{max-width:640px;margin:0 auto}
+  .r-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .r-left{display:flex;flex-direction:column;gap:3px}
+  .r-score{font-size:12.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#B9C4F2}
+  .r-score b{color:var(--white);font-size:17px}
+  .r-cat{
+    display:inline-block;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    padding:3px 9px;border-radius:999px;background:var(--berry);color:var(--white);width:max-content;
+  }
+  .r-right{text-align:right}
+  .r-risk{font-weight:900;font-stretch:112%;font-size:clamp(32px,8vw,42px);line-height:1}
+  .r-risk small{font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#B9C4F2;display:block}
+  .scale{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:12px}
+  .scale .bin{
+    border-radius:6px;background:#3A3B96;position:relative;padding:16px 2px 4px;
+    display:flex;flex-direction:column;align-items:center;gap:1px;
+    font-size:12px;font-weight:800;color:#fff;transition:background .18s,transform .18s;
+  }
+  .scale .bin .rng{font-size:9px;font-weight:600;color:#9AA3DE}
+  .scale .bin .nm{position:absolute;top:3px;font-size:8.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#8F98D6}
+  .scale .bin.active{background:var(--berry)}
+  .scale .bin.active .rng,.scale .bin.active .nm{color:#F2C9D5}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  .note{margin-top:26px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+  .note p+p{margin-top:8px}
+  .note b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="inner">
+    <div class="eyebrow">Bedside risk score · Neck dissection</div>
+    <h1>Who Goes<br>Home?</h1>
+    <p class="sub">Predicted risk of discharge to a location other than home, from preoperative variables only. Derived from 24,087 neck dissections (ACS-NSQIP 2011–2020) · validation AUC 0.78.</p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="section-label">Age</div>
+  <fieldset>
+    <legend>Age</legend>
+    <div class="seg cols-5" role="radiogroup">
+      <input type="radio" name="age" id="a0" value="0" checked><label for="a0">&lt; 50<span class="pts">+0</span></label>
+      <input type="radio" name="age" id="a2" value="2"><label for="a2">50–59<span class="pts">+2</span></label>
+      <input type="radio" name="age" id="a4" value="4"><label for="a4">60–69<span class="pts">+4</span></label>
+      <input type="radio" name="age" id="a6" value="6"><label for="a6">70–79<span class="pts">+6</span></label>
+      <input type="radio" name="age" id="a8" value="8"><label for="a8">≥ 80<span class="pts">+8</span></label>
+    </div>
+  </fieldset>
+
+  <div class="section-label">Functional status</div>
+  <fieldset>
+    <legend>Functional status</legend>
+    <div class="seg cols-3" role="radiogroup">
+      <input type="radio" name="func" id="f0" value="0" checked><label for="f0">Independent<span class="pts">+0</span></label>
+      <input type="radio" name="func" id="f8" value="8"><label for="f8">Partially dependent<span class="pts">+8</span></label>
+      <input type="radio" name="func" id="f13" value="13"><label for="f13">Totally dependent<span class="pts">+13</span></label>
+    </div>
+  </fieldset>
+
+  <div class="section-label">Comorbidities <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)">— check each, if present</span></div>
+
+  <label class="row"><input type="checkbox" value="4">
+    <span class="box"><svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5.5L5 9.5L13 1.5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <span class="txt"><b>ASA classification ≥ 3</b></span>
+    <span class="pts">+4</span>
+  </label>
+  <label class="row"><input type="checkbox" value="3">
+    <span class="box"><svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5.5L5 9.5L13 1.5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <span class="txt"><b>Current smoker</b></span>
+    <span class="pts">+3</span>
+  </label>
+  <label class="row"><input type="checkbox" value="2">
+    <span class="box"><svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5.5L5 9.5L13 1.5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <span class="txt"><b>COPD</b></span>
+    <span class="pts">+2</span>
+  </label>
+  <label class="row"><input type="checkbox" value="1">
+    <span class="box"><svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5.5L5 9.5L13 1.5" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <span class="txt"><b>Chronic steroid use</b></span>
+    <span class="pts">+1</span>
+  </label>
+
+  <div class="note">
+    <p><b>Research tool.</b> This score estimates group-level risk of discharge to a destination other than home (e.g., skilled nursing or rehabilitation facility). It supports preoperative counseling and early discharge planning — it does not replace clinical judgment or determine care for an individual patient. Total score ranges 0–39; risk categories and observed rates are from the study test set (validation AUC 0.78).</p>
+    <p>Selvasingh JA, Jella TK, Krueger MA, Menon TP, Magdycz WP, Shinn JR. <i>Who Goes Home? Predicting Non-Home Discharge After Neck Dissection.</i> Department of Surgery, Section of Otolaryngology, Carilion Clinic – Virginia Tech Carilion School of Medicine.</p>
+  </div>
+</main>
+
+<div class="result" role="status" aria-live="polite">
+  <div class="inner">
+    <div class="r-top">
+      <div class="r-left">
+        <span class="r-score">Total score <b id="score">0</b> / 39</span>
+        <span class="r-cat" id="cat">Low risk</span>
+      </div>
+      <div class="r-right">
+        <span class="r-risk" id="risk">0.9%</span>
+        <small>predicted non-home discharge</small>
+      </div>
+    </div>
+    <div class="scale" id="scale" aria-hidden="true"></div>
+  </div>
+</div>
+
+<script>
+  // Published risk strata (study test set)
+  const BINS = [
+    {name:"Low",       range:"0–4",  min:0,  max:4,  risk:0.9},
+    {name:"Moderate",  range:"5–8",  min:5,  max:8,  risk:3.9},
+    {name:"High",      range:"9–11", min:9,  max:11, risk:8.1},
+    {name:"Very high", range:"12–13",min:12, max:13, risk:15.5},
+    {name:"Extreme",   range:"≥14",  min:14, max:99, risk:32.1}
+  ];
+
+  const scale = document.getElementById('scale');
+  BINS.forEach(b => {
+    const d = document.createElement('div');
+    d.className = 'bin';
+    d.innerHTML = '<span class="nm">' + b.name + '</span>' + b.risk + '%<span class="rng">' + b.range + '</span>';
+    scale.appendChild(d);
+  });
+  const bins = scale.children;
+
+  function binFor(s){ for (let i=0;i<BINS.length;i++){ if (s <= BINS[i].max) return i; } return BINS.length-1; }
+
+  function update(){
+    let s = 0;
+    s += +document.querySelector('input[name="age"]:checked').value;
+    s += +document.querySelector('input[name="func"]:checked').value;
+    document.querySelectorAll('input[type="checkbox"]').forEach(c => { if (c.checked) s += +c.value; });
+    const i = binFor(s);
+    document.getElementById('score').textContent = s;
+    document.getElementById('risk').textContent = BINS[i].risk.toFixed(1) + '%';
+    document.getElementById('cat').textContent = BINS[i].name + ' risk';
+    for (let k=0;k<bins.length;k++) bins[k].classList.toggle('active', k===i);
+  }
+  document.querySelectorAll('input').forEach(i => i.addEventListener('change', update));
+  update();
+</script>
+</body>
+</html>
